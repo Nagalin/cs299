@@ -1,0 +1,364 @@
+<!--
+CS299 - Term project
+
+First Name: Nagalin 
+Last Name: punyakalin
+Student ID: 6409682660
+E-mail: nagalin.pun@dome.tu.ac.th
+
+First Name: Than 
+Last Name: Banphakan
+Student ID: 6409682744
+E-mail: than.ban@dome.tu.ac.th
+-->
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=yes">
+    <title>One day of shooting star</title>
+
+    <style type="text/css">
+        html, body { height: 100%; margin: 0; }
+        #c { width: 100%; height: 100%; display: block;} 
+    </style>
+    <link rel="stylesheet" href="299_TermProject_9370DB.css">
+
+</head>
+<body>
+      <canvas id="c"></canvas>
+</body>
+
+
+<script type="module">
+//import
+import {GUI} from 'https://threejsfundamentals.org/threejs/../3rdparty/dat.gui.module.js';
+import * as THREE from 'https://threejsfundamentals.org/threejs/resources/threejs/r132/build/three.module.js';
+import {OrbitControls} from 'https://threejsfundamentals.org/threejs/resources/threejs/r132/examples/jsm/controls/OrbitControls.js';
+import {GLTFLoader} from 'https://threejsfundamentals.org/threejs/resources/threejs/r132/examples/jsm/loaders/GLTFLoader.js';
+
+function main() {
+  const canvas = document.querySelector('#c');
+  const renderer = new THREE.WebGLRenderer({canvas});
+  renderer.shadowMap.enabled=true;
+  renderer.shadowMap.type=THREE.PCFSoftShadowMap;
+
+  const fov = 45;
+  const aspect = 2;  // the canvas default
+  const near = 0.1;
+  const far = 100;
+  const camera = new THREE.PerspectiveCamera(fov, aspect, near, far);
+  camera.position.set(10, 1, 10); 
+
+  const controls = new OrbitControls(camera, canvas);
+  controls.target.set(1, 0, 1);
+  controls.update();
+
+  const scene = new THREE.Scene();
+
+  {
+    const color = 0xffffff;
+    const intensity = 2.25;
+    let light = new THREE.DirectionalLight(color, intensity);
+
+ 
+    
+  }
+  //UI for user
+{
+  class ColorGUIHelper {
+    constructor(object, prop) {
+      this.object = object;
+      this.prop = prop;
+    }
+    get value() {
+      return `#${this.object[this.prop].getHexString()}`;
+    }
+    set value(hexString) {
+      this.object[this.prop].set(hexString);
+    }
+  }
+
+//make X, Y, Z GUI that user can change light.shadow position 
+  function makeXYZGUI(gui, vector3, name, onChangeFn) {
+    const folder = gui.addFolder(name);
+    folder.add(vector3, 'x', -10, 10).onChange(onChangeFn);
+    folder.add(vector3, 'y', 0, 10).onChange(onChangeFn);
+    folder.add(vector3, 'z', -10, 10).onChange(onChangeFn);
+  }
+
+  //create Cubemap texture for sky
+//the .png image we use normal png image and then we use FREE CubeMap Generator website to created
+{
+    const loader = new THREE.CubeTextureLoader();
+    const textures = loader.load([
+    'skybox/px.png',
+		'skybox/nx.png',
+		'skybox/py.png',
+		'skybox/ny.png',
+		'skybox/pz.png',
+		'skybox/nz.png'
+      ]);
+    scene.background = textures; 
+  }
+
+  //create Directional Light into the scene 
+  {
+    const color = 0xc0c0c0;
+    const intensity = 2.25;
+    let light = new THREE.DirectionalLight(color, intensity);
+
+  //set directional light property and light.shadow property and add into scene
+    light.castShadow = true;
+    light.position.set(2.9, 4.1, 4);
+    light.target.position.set(-3.3, 0, 10);
+    light.shadow.bias = -0.001;
+    light.shadow.mapSize.width = 2048;
+    light.shadow.mapSize.height = 2048;
+    light.shadow.camera.near = 0.1;
+    light.shadow.camera.left = 50;
+    light.shadow.camera.right = -50;
+    light.shadow.camera.top = 50;
+    light.shadow.camera.buttom = 50;
+    scene.add(light);
+    scene.add(light.target);
+    
+  //create ambient light and add into the scene
+    const ambient = new THREE.AmbientLight(0x101010);
+    scene.add(ambient);
+  
+    function updateCamera() {    
+      // update the light's shadow camera's projection matrix
+      light.shadow.camera.updateProjectionMatrix();  
+    }
+    updateCamera();
+
+    //create raindrop in scene by using "BufferGeometry"
+  let particles;
+  let positions = [], velocities = [];
+
+//assign value of number of raindrop, max and min range of rainstrom
+  const numRainDrop = 15000;
+  const maxRange = 1000, minRange = maxRange/2;
+  const minHeight = 100;
+  const geometry = new THREE.BufferGeometry();
+  const texture = new THREE.TextureLoader();
+  addSnow();
+
+//function to add every raindrop we create into scene
+//we have two array First array is position of raindrop and Second is position of velocities
+function addSnow(){
+  for (let i = 0 ; i < numRainDrop ; i++ ){
+    positions.push(
+      Math.floor(Math.random() * maxRange - minRange),
+      Math.floor(Math.random() * minRange - minHeight),
+      Math.floor(Math.random() * maxRange - minRange));
+//x,y,z
+    velocities.push(
+      Math.floor(1),
+      Math.floor(Math.random() * 5 - 0.12) * 0.18,
+      Math.floor(1));
+  }
+
+//we set attribute for position after we push value by random number
+  geometry.setAttribute('position', new THREE.Float32BufferAttribute(positions, 3));
+  geometry.setAttribute('velocity', new THREE.Float32BufferAttribute(velocities, 3));
+
+//load texture from .png file into our raindrop and add into scene
+  const textureLoader = new THREE.TextureLoader();
+
+//assing raindrop size, texture, blending and opacity
+  const dropMaterial = new THREE.PointsMaterial({
+    size: 1.5,
+    map: textureLoader.load("/snow.png"),
+    blending: THREE.AdditiveBlending,
+    depthTest: false,
+    transparent: true,
+    opacity: 0.4,
+  });
+
+  particles = new THREE.Points(geometry, dropMaterial);
+  scene.add(particles);
+}
+    class DimensionGUIHelper {
+      constructor(obj, minProp, maxProp) {
+        this.obj = obj;
+        this.minProp = minProp;
+        this.maxProp = maxProp;
+      }
+      get value() {
+        return this.obj[this.maxProp] * 2;
+      }
+      set value(v) {
+        this.obj[this.maxProp] = v /  2;
+        this.obj[this.minProp] = v / -2;
+      }
+    }
+
+    //create User interface size 
+    class MinMaxGUIHelper {
+      constructor(obj, minProp, maxProp, minDif) {
+        this.obj = obj;
+        this.minProp = minProp;
+        this.maxProp = maxProp;
+        this.minDif = minDif;
+      }
+      get min() {
+        return this.obj[this.minProp];
+      }
+      set min(v) {
+        this.obj[this.minProp] = v;
+        this.obj[this.maxProp] = Math.max(this.obj[this.maxProp], v + this.minDif);
+      }
+      get max() {
+        return this.obj[this.maxProp];
+      }
+      set max(v) {
+        this.obj[this.maxProp] = v;
+        this.min = this.min;  // this will call the min setter
+      }
+    }
+
+  //create receiver and assign min max shadow camera value  
+    const gui = new GUI();
+    gui.addColor(new ColorGUIHelper(light, 'color'), 'value').name('color');
+    gui.add(light, 'intensity', 0, 5, 0.01);
+    {
+      const folder = gui.addFolder('Shadow Camera');
+      folder.open();
+      folder.add(new DimensionGUIHelper(light.shadow.camera, 'left', 'right'), 'value', 1, 100)
+      .name('width')
+      .onChange(updateCamera);
+      folder.add(new DimensionGUIHelper(light.shadow.camera, 'bottom', 'top'), 'value', 1, 100)
+      .name('height')
+      .onChange(updateCamera);
+      const minMaxGUIHelper = new MinMaxGUIHelper(light.shadow.camera, 'near', 'far', 0.1);
+      folder.add(minMaxGUIHelper, 'min', 0.1, 50, 0.1).name('near').onChange(updateCamera);
+      folder.add(minMaxGUIHelper, 'max', 0.1, 50, 0.1).name('far').onChange(updateCamera);
+      folder.add(light.shadow.camera, 'zoom', 0.01, 1.5, 0.01).onChange(updateCamera);
+    }
+
+    makeXYZGUI(gui, light.position, 'position', updateCamera);
+    makeXYZGUI(gui, light.target.position, 'target', updateCamera);
+  }
+  }
+  
+ 
+  function frameArea(sizeToFitOnScreen, boxSize, boxCenter, camera) {
+    const halfSizeToFitOnScreen = sizeToFitOnScreen * 0.5;
+    const halfFovY = THREE.MathUtils.degToRad(camera.fov * .5);
+    const distance = halfSizeToFitOnScreen / Math.tan(halfFovY);
+    // compute a unit vector that points in the direction the camera is now
+    // in the xz plane from the center of the box
+    const direction = (new THREE.Vector3())
+        .subVectors(camera.position, boxCenter)
+        .multiply(new THREE.Vector3(1, 0, 1))
+        .normalize();
+
+    // move the camera to a position distance units way from the center
+    // in whatever direction the camera was from the center already
+    camera.position.copy(direction.multiplyScalar(distance).add(boxCenter));
+
+    // pick some near and far values for the frustum that
+    // will contain the box.
+    camera.near = boxSize / 100;
+    camera.far = boxSize * 100;
+
+    camera.updateProjectionMatrix();
+
+    // point the camera to look at the center of the box
+    camera.lookAt(boxCenter.x, boxCenter.y, boxCenter.z);
+  }
+ const geometry = new THREE.BoxGeometry(1, 1, 1);
+
+  //create cube meterial  
+  //greenish blue fs ang vs รับสี
+  const material = new THREE.MeshPhongMaterial({color: 0xFFFF7D});  
+
+  //เรนเดอร์ ต้องการ Scene กับ Camera ด้านบนที่ set ไว้
+  renderer.render(scene, camera);
+
+  //We load file gltf from exporting .blend
+  {
+    const gltfLoader = new GLTFLoader();
+    gltfLoader.load('model.gltf', (gltf) => {
+      gltf.scene.traverse(c=>{
+        c.castShadow=true;
+        c.receiveShadow=true;
+      })
+      const root = gltf.scene;
+      scene.add(root);
+
+      // compute the box that contains all the stuff
+      // from root and below
+      const box = new THREE.Box3().setFromObject(root);
+
+      const boxSize = 0.3*box.getSize(new THREE.Vector3()).length();
+      const boxCenter = box.getCenter(new THREE.Vector3());
+
+      
+      // set the camera to frame the box
+      frameArea(boxSize, boxSize, boxCenter, camera);
+
+      // update the Trackball controls to handle the new size
+      controls.maxDistance = boxSize * 10;
+      controls.target.copy(boxCenter);
+      controls.update();
+
+
+    });
+  }
+
+  /*const loader = new THREE.TextureLoader();
+const bgTexture = loader.load('resources/images/daikanyama.jpg');
+scene.background = bgTexture;*/
+
+  {
+    // create an AudioListener and add it to the camera
+    const listener = new THREE.AudioListener();
+    camera.add( listener );
+    scene.add(camera);
+
+    // create a global audio source
+    const sound = new THREE.Audio( listener );
+
+    // load a sound and set it as the Audio object's buffer
+    const audioLoader = new THREE.AudioLoader();
+    audioLoader.load( 'song.mp3', function( buffer ) {
+	  sound.setBuffer( buffer );
+	  sound.setLoop( true );
+	  sound.setVolume( 0.1 );
+	  sound.play();
+    });
+
+  } 
+
+  function resizeRendererToDisplaySize(renderer) {
+    const canvas = renderer.domElement;
+    const width = canvas.clientWidth;
+    const height = canvas.clientHeight;
+    const needResize = canvas.width !== width || canvas.height !== height;
+    if (needResize) {
+      renderer.setSize(width, height, false);
+    }
+    return needResize;
+  }
+
+  function render() {
+    if (resizeRendererToDisplaySize(renderer)) {
+      const canvas = renderer.domElement;
+      camera.aspect = canvas.clientWidth / canvas.clientHeight;
+      camera.updateProjectionMatrix();
+    }
+
+    renderer.render(scene, camera);
+
+    requestAnimationFrame(render);
+  }
+
+  requestAnimationFrame(render);
+  
+}
+main();
+</script>
+</html>
